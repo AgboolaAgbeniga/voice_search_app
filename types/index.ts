@@ -1,8 +1,16 @@
 // ─── Search Types ────────────────────────────────────────────────────────────
 
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 export interface SearchResponse {
   answer: string;
   model: string;
+  sources?: SearchResult[];
+  hasWebSearch?: boolean;
   error?: string;
 }
 

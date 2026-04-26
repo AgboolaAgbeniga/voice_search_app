@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNvidiaClient, getModel } from "@/lib/nvidia-client";
+import { getWebResults } from "@/lib/search-providers";
 
 // ─── Main Route ───────────────────────────────────────────────────────────────
 
@@ -13,17 +14,28 @@ export async function POST(req: NextRequest) {
 
     const model = getModel();
 
-    // Build prompt for direct answer
-    const systemPrompt = `You are a helpful AI assistant. Answer the user's question clearly, concisely, and directly.
+    // 1. Fetch web results if any keys are provided
+    const webResults = await getWebResults(query);
+    const hasWebResults = webResults.length > 0;
+
+    // 2. Build prompt for direct answer
+    const systemPrompt = hasWebResults
+      ? `You are a helpful AI assistant. Answer the user's question clearly, concisely, and directly using the provided search results.
+Provide a direct summary answer in 1-2 sentences max. Use the search results to ensure accuracy.`
+      : `You are a helpful AI assistant. Answer the user's question clearly, concisely, and directly.
 Provide a direct summary answer in 1-2 sentences max. Do not include any fluff or introductory phrases. Just the facts.`;
 
-    // Call NVIDIA API
+    const userContent = hasWebResults
+      ? `Question: ${query}\n\nSearch Results:\n${webResults.map(r => `${r.title}: ${r.snippet}`).join("\n\n")}`
+      : query;
+
+    // 3. Call NVIDIA API
     const client = getNvidiaClient();
     const completion = await client.chat.completions.create({
       model,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: query },
+        { role: "user", content: userContent },
       ],
       max_tokens: 512,
       temperature: 0.7,
@@ -34,6 +46,8 @@ Provide a direct summary answer in 1-2 sentences max. Do not include any fluff o
     return NextResponse.json({
       answer,
       model,
+      sources: webResults,
+      hasWebSearch: hasWebResults,
     });
   } catch (err: unknown) {
     console.error("[/api/search] Error:", err);
