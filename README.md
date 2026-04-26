@@ -45,13 +45,7 @@ npm install
 
 ### 3. Configure Environment Variables
 
-Copy the example env file and add your NVIDIA API key:
-
-```bash
-cp .env.example .env.local
-```
-
-Then edit `.env.local`:
+Add your NVIDIA API key to the `.env` file:
 
 ```env
 # Required — your NVIDIA NIM API key

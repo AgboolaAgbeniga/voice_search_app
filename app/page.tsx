@@ -355,7 +355,7 @@ export default function Home() {
             <div>
               <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--danger)", marginBottom: 4 }}>Error</p>
               <p style={{ fontSize: "0.8rem", color: "rgba(248,113,113,0.8)", lineHeight: 1.5 }}>{errorMsg}</p>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 6, fontFamily: "var(--font-mono)" }}>Check your .env.local — ensure NVIDIA_API_KEY is set.</p>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 6, fontFamily: "var(--font-mono)" }}>Check your .env — ensure NVIDIA_API_KEY is set.</p>
             </div>
           </div>
         </section>
