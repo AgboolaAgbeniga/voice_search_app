@@ -3,12 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Waveform } from "@/components/Waveform";
 import { Spinner } from "@/components/Spinner";
+import { NVIDIA_MODELS, type NvidiaModelId } from "@/lib/nvidia-client";
 import type { SearchResponse, AppState, SpeechRecognitionEvent, SpeechRecognitionErrorEvent, SpeechRecognitionInstance } from "@/types";
 
 interface QAEntry {
   id: number;
   question: string;
   answer: string;
+  model: string;
   timestamp: Date;
 }
 
@@ -23,6 +25,7 @@ export default function Home() {
   // Toggles
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [autoMic, setAutoMic] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<NvidiaModelId>(NVIDIA_MODELS[0].id);
 
   // Conversation history
   const [history, setHistory] = useState<QAEntry[]>([]);
@@ -77,7 +80,7 @@ export default function Home() {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, model: selectedModel }),
       });
       const data: SearchResponse = await res.json();
       if (!res.ok || data.error) {
@@ -89,6 +92,7 @@ export default function Home() {
         id: ++entryIdRef.current,
         question: query,
         answer: data.answer,
+        model: data.model,
         timestamp: new Date(),
       };
       setHistory(prev => [...prev, entry]);
@@ -105,7 +109,7 @@ export default function Home() {
       setErrorMsg("Network error. Check your connection and API key.");
       setState("error");
     }
-  }, [speakAnswer]);
+  }, [speakAnswer, selectedModel]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -241,6 +245,29 @@ export default function Home() {
           <p style={{ fontSize: "0.625rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>ask and get answers instantly</p>
         </div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          {/* Model Selector */}
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 2, border: "1px solid var(--border)", marginRight: 8 }}>
+            {NVIDIA_MODELS.map(m => (
+              <button
+                key={m.id}
+                onClick={() => setSelectedModel(m.id)}
+                style={{
+                  fontSize: "0.6rem",
+                  fontFamily: "var(--font-mono)",
+                  padding: "4px 8px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  background: selectedModel === m.id ? "rgba(56,189,248,0.15)" : "transparent",
+                  color: selectedModel === m.id ? "var(--accent)" : "var(--text-muted)",
+                }}
+              >
+                {m.label.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+          
           <Toggle on={voiceEnabled} onToggle={() => {
             if (voiceEnabled) { window.speechSynthesis?.cancel(); setIsSpeaking(false); }
             setVoiceEnabled(!voiceEnabled);
@@ -329,7 +356,9 @@ export default function Home() {
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.3), transparent)" }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", boxShadow: "0 0 6px var(--success)" }} />
-                    <span style={{ fontSize: "0.625rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.1em" }}>AI</span>
+                    <span style={{ fontSize: "0.625rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.1em" }}>
+                      AI • {entry.model.includes("llama") ? "LLAMA" : "DEEPSEEK"}
+                    </span>
                     <span style={{ fontSize: "0.55rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginLeft: "auto" }}>
                       {entry.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
