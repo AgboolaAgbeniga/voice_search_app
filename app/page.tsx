@@ -23,7 +23,7 @@ export default function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Toggles
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [autoMic, setAutoMic] = useState(false);
   const [selectedModel, setSelectedModel] = useState<NvidiaModelId>(NVIDIA_MODELS[0].id);
 
@@ -80,7 +80,7 @@ export default function Home() {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, model: selectedModel }),
+        body: JSON.stringify({ query, model: selectedModel, history }),
       });
       const data: SearchResponse = await res.json();
       if (!res.ok || data.error) {
@@ -160,7 +160,11 @@ export default function Home() {
 
     recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
       if (e.error !== "no-speech") {
-        setErrorMsg(`Microphone error: ${e.error}`);
+        let msg = `Microphone error: ${e.error}`;
+        if (e.error === "aborted") {
+          msg += ". (If on mobile, ensure you are using HTTPS and have granted microphone permissions)";
+        }
+        setErrorMsg(msg);
         setState("error");
       }
     };
@@ -244,7 +248,34 @@ export default function Home() {
           </div>
           <p style={{ fontSize: "0.625rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>ask and get answers instantly</p>
         </div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {/* New Chat Button */}
+          <button 
+            onClick={clearHistory}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "6px 10px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              color: "var(--text)",
+              fontSize: "0.65rem",
+              fontFamily: "var(--font-mono)",
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+            onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>NEW CHAT</span>
+          </button>
+
           {/* Model Selector */}
           <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 2, border: "1px solid var(--border)", marginRight: 8 }}>
             {NVIDIA_MODELS.map(m => (
@@ -276,61 +307,40 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Mic Section */}
-      <section style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "1.5rem 1rem 1rem", gap: 16, width: "100%", maxWidth: 720 }}>
-        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {isListening && [0, 1].map(i => (
-            <div key={i} style={{ position: "absolute", inset: -20, borderRadius: "50%", border: "1px solid rgba(56,189,248,0.4)", animation: "pulse-ring 2s ease-out infinite", animationDelay: `${i * 0.7}s`, pointerEvents: "none" }} />
-          ))}
-          <button onClick={handleMicClick} disabled={isProcessing || !supported} style={{
-            width: "clamp(64px, 18vw, 88px)", height: "clamp(64px, 18vw, 88px)", borderRadius: "50%",
-            background: isListening ? "radial-gradient(circle, rgba(56,189,248,0.2) 0%, rgba(56,189,248,0.05) 100%)" : "radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 100%)",
-            border: `1.5px solid ${isListening ? "var(--accent)" : "rgba(255,255,255,0.1)"}`,
-            cursor: isProcessing ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-            boxShadow: isListening ? "0 0 40px rgba(56,189,248,0.2), inset 0 0 20px rgba(56,189,248,0.05)" : "none",
-            transform: isListening ? "scale(1.05)" : "scale(1)",
-          }} aria-label={isListening ? "Stop listening" : "Start voice search"}>
-            {isProcessing ? <Spinner /> : isListening ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent)"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-            ) : (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        <div style={{ opacity: isListening ? 1 : 0.3, transition: "opacity 0.4s ease" }}><Waveform active={isListening} /></div>
-
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(10px, 2vw, 12px)", letterSpacing: "0.15em", textTransform: "uppercase", color: isListening ? "var(--accent)" : "var(--text-muted)", animation: isListening ? "blink 2s ease-in-out infinite" : "none" }}>
-          {!supported ? "⚠ Use Chrome/Edge" : isProcessing ? "Thinking..." : isListening ? (autoMic ? "Auto-listening..." : "Listening...") : state === "result" ? "Ask another question" : "Tap to speak"}
-        </div>
-
-        {(transcript || interimText) && (
-          <div style={{ maxWidth: 520, textAlign: "center", animation: "fade-up 0.3s ease", padding: "0 1rem", width: "100%" }}>
-            <p style={{ fontSize: "clamp(15px, 3.5vw, 20px)", fontWeight: 700, lineHeight: 1.4, color: "var(--text)" }}>
-              {transcript}{interimText && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> {interimText}</span>}
-            </p>
+      {/* History & Mic Section */}
+      <section style={{ 
+        width: "100%", 
+        maxWidth: 720, 
+        padding: "0.5rem 1rem 4rem", 
+        position: "relative", 
+        zIndex: 1, 
+        flex: 1, 
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24
+      }}>
+        {/* Empty state greeting */}
+        {history.length === 0 && (
+          <div style={{ textAlign: "center", marginTop: "2rem", animation: "fade-up 0.5s ease" }}>
+            <h1 style={{ fontSize: "clamp(24px, 8vw, 40px)", fontWeight: 800, marginBottom: "0.5rem", background: "linear-gradient(to bottom, #fff, #888)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>How can I help you?</h1>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", fontFamily: "var(--font-mono)" }}>Ask anything by voice — get instant answers.</p>
           </div>
         )}
-      </section>
 
-      {/* Conversation History */}
-      {history.length > 0 && (
-        <section style={{ width: "100%", maxWidth: 720, padding: "0.5rem 1rem 2rem", position: "relative", zIndex: 1, flex: 1, overflowY: "auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: "0.7rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.1em" }}>
-              CONVERSATION ({history.length})
-            </span>
-            <button onClick={clearHistory} style={{
-              background: "transparent", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px",
-              color: "var(--text-muted)", fontSize: "0.65rem", fontFamily: "var(--font-mono)", cursor: "pointer",
-            }}>CLEAR</button>
-          </div>
-
+        {/* Conversation List */}
+        {history.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: "0.7rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.1em" }}>
+                CONVERSATION ({history.length})
+              </span>
+              <button onClick={clearHistory} style={{
+                background: "transparent", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px",
+                color: "var(--text-muted)", fontSize: "0.65rem", fontFamily: "var(--font-mono)", cursor: "pointer",
+              }}>CLEAR</button>
+            </div>
+            
             {history.map((entry) => (
               <div key={entry.id} style={{ animation: "fade-up 0.4s ease" }}>
                 {/* Question */}
@@ -357,7 +367,7 @@ export default function Home() {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", boxShadow: "0 0 6px var(--success)" }} />
                     <span style={{ fontSize: "0.625rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: "0.1em" }}>
-                      AI • {entry.model.includes("llama") ? "LLAMA" : "DEEPSEEK"}
+                      AI • {entry.model.includes("llama") ? "LLAMA" : entry.model.includes("gemma") ? "GEMMA" : "AI"}
                     </span>
                     <span style={{ fontSize: "0.55rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginLeft: "auto" }}>
                       {entry.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -369,10 +379,59 @@ export default function Home() {
                 </div>
               </div>
             ))}
-            <div ref={historyEndRef} />
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Dynamic Mic Section - "After every conversation" */}
+        <div style={{ 
+          marginTop: history.length > 0 ? 16 : 0,
+          display: "flex", 
+          flexDirection: "column", 
+          alignItems: "center", 
+          gap: 16,
+          padding: "2rem 0",
+          borderTop: history.length > 0 ? "1px solid var(--border)" : "none"
+        }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isListening && [0, 1].map(i => (
+              <div key={i} style={{ position: "absolute", inset: -20, borderRadius: "50%", border: "1px solid rgba(56,189,248,0.4)", animation: "pulse-ring 2s ease-out infinite", animationDelay: `${i * 0.7}s`, pointerEvents: "none" }} />
+            ))}
+            <button onClick={handleMicClick} disabled={isProcessing || !supported} style={{
+              width: "clamp(64px, 18vw, 80px)", height: "clamp(64px, 18vw, 80px)", borderRadius: "50%",
+              background: isListening ? "radial-gradient(circle, rgba(56,189,248,0.2) 0%, rgba(56,189,248,0.05) 100%)" : "radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 100%)",
+              border: `1.5px solid ${isListening ? "var(--accent)" : "rgba(255,255,255,0.1)"}`,
+              cursor: isProcessing ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+              boxShadow: isListening ? "0 0 40px rgba(56,189,248,0.2), inset 0 0 20px rgba(56,189,248,0.05)" : "none",
+              transform: isListening ? "scale(1.05)" : "scale(1)",
+            }} aria-label={isListening ? "Stop listening" : "Start voice search"}>
+              {isProcessing ? <Spinner /> : isListening ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent)"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+              ) : (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          <div style={{ opacity: isListening ? 1 : 0.4, transition: "opacity 0.4s ease" }}><Waveform active={isListening} /></div>
+
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(10px, 2vw, 12px)", letterSpacing: "0.15em", textTransform: "uppercase", color: isListening ? "var(--accent)" : "var(--text-muted)", animation: isListening ? "blink 2s ease-in-out infinite" : "none" }}>
+            {!supported ? "⚠ Use Chrome/Edge" : isProcessing ? "Thinking..." : isListening ? (autoMic ? "Auto-listening..." : "Listening...") : "Tap to Speak"}
+          </div>
+
+          {(transcript || interimText) && (
+            <div style={{ maxWidth: 520, textAlign: "center", animation: "fade-up 0.3s ease", padding: "0 1rem", width: "100%" }}>
+              <p style={{ fontSize: "clamp(15px, 3.5vw, 18px)", fontWeight: 700, lineHeight: 1.4, color: "var(--text)" }}>
+                {transcript}{interimText && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> {interimText}</span>}
+              </p>
+            </div>
+          )}
+          <div ref={historyEndRef} />
+        </div>
+      </section>
 
       {/* Error */}
       {state === "error" && (
@@ -384,18 +443,15 @@ export default function Home() {
             <div>
               <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--danger)", marginBottom: 4 }}>Error</p>
               <p style={{ fontSize: "0.8rem", color: "rgba(248,113,113,0.8)", lineHeight: 1.5 }}>{errorMsg}</p>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 6, fontFamily: "var(--font-mono)" }}>Check your .env — ensure NVIDIA_API_KEY is set.</p>
+              {!errorMsg.includes("Microphone") && (
+                <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 6, fontFamily: "var(--font-mono)" }}>Check your .env — ensure NVIDIA_API_KEY is set.</p>
+              )}
             </div>
           </div>
         </section>
       )}
 
-      {/* Footer */}
-      {state === "idle" && history.length === 0 && (
-        <footer style={{ position: "absolute", bottom: "1.5rem", left: 0, right: 0, display: "flex", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "clamp(9px, 2vw, 11px)", color: "var(--text-muted)", zIndex: 1, textAlign: "center" }}>
-          <span>tap mic → speak → get answer</span>
-        </footer>
-      )}
+
     </main>
   );
 }
