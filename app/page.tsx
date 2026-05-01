@@ -363,8 +363,8 @@ export default function Home() {
         {/* Empty state greeting */}
         {history.length === 0 && (
           <div style={{ textAlign: "center", marginTop: "2rem", animation: "fade-up 0.5s ease" }}>
-            <h1 style={{ fontSize: "clamp(24px, 8vw, 40px)", fontWeight: 800, marginBottom: "0.5rem", background: "linear-gradient(to bottom, #fff, #888)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>How can I help you?</h1>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", fontFamily: "var(--font-mono)" }}>Ask anything by voice — get instant answers.</p>
+            {/* <h1 style={{ fontSize: "clamp(24px, 8vw, 40px)", fontWeight: 800, marginBottom: "0.5rem", background: "linear-gradient(to bottom, #fff, #888)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>How can I help you?</h1> */}
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", fontFamily: "var(--font-mono)" }}>Ask anything by voice and get instant answers.</p>
           </div>
         )}
 
