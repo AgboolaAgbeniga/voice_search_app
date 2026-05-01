@@ -68,9 +68,42 @@ export default function Home() {
     return () => { window.speechSynthesis?.cancel(); };
   }, []);
 
+  // Persistence: Load history on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("voice_search_history");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert string timestamps back to Date objects
+        const formatted = parsed.map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        }));
+        setHistory(formatted);
+        
+        // Sync entryIdRef
+        if (formatted.length > 0) {
+          const maxId = Math.max(...formatted.map((e: any) => e.id));
+          entryIdRef.current = maxId;
+        }
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, []);
+
+  // Persistence: Save history on change
+  useEffect(() => {
+    if (history.length > 0 || localStorage.getItem("voice_search_history")) {
+      localStorage.setItem("voice_search_history", JSON.stringify(history));
+    }
+  }, [history]);
+
   // Scroll to bottom on new entry
   useEffect(() => {
-    historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (history.length > 0) {
+      historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [history]);
 
   const doSearch = useCallback(async (query: string) => {
@@ -198,13 +231,20 @@ export default function Home() {
   };
 
   const clearHistory = () => {
-    window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-    setHistory([]);
-    setState("idle");
-    setTranscript("");
-    setInterimText("");
-    setErrorMsg("");
+    if (confirm("Are you sure you want to clear all history?")) {
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      setHistory([]);
+      localStorage.removeItem("voice_search_history");
+      setState("idle");
+      setTranscript("");
+      setInterimText("");
+      setErrorMsg("");
+    }
+  };
+
+  const deleteEntry = (id: number) => {
+    setHistory(prev => prev.filter(entry => entry.id !== id));
   };
 
   const isListening = state === "listening";
@@ -372,6 +412,28 @@ export default function Home() {
                     <span style={{ fontSize: "0.55rem", fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginLeft: "auto" }}>
                       {entry.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
+                    {/* Delete Entry Button */}
+                    <button 
+                      onClick={() => deleteEntry(entry.id)}
+                      style={{ 
+                        background: "transparent", 
+                        border: "none", 
+                        padding: 4, 
+                        cursor: "pointer", 
+                        color: "var(--text-muted)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "color 0.2s ease"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.color = "var(--danger)"}
+                      onMouseOut={(e) => e.currentTarget.style.color = "var(--text-muted)"}
+                      title="Delete this entry"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                      </svg>
+                    </button>
                   </div>
                   <div style={{ fontSize: "clamp(14px, 2.5vw, 16px)", lineHeight: 1.6, color: "var(--text)", fontFamily: "var(--font-display)", fontWeight: 400, whiteSpace: "pre-wrap" }}>
                     {entry.answer}
