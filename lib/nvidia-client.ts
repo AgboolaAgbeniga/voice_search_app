@@ -4,7 +4,7 @@ import OpenAI from "openai";
 
 export const NVIDIA_MODELS = [
   { id: "meta/llama-3.3-70b-instruct", label: "Llama 3.3 70B" },
-  { id: "google/gemma-3n-e4b-it", label: "Gemma 3N 4B" },
+  { id: "meta/muse-glimmer-30b", label: "Muse Glimmer 30B" },
 ] as const;
 
 export type NvidiaModelId = (typeof NVIDIA_MODELS)[number]["id"];
